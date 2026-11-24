@@ -62,3 +62,5 @@ jobs:
           path: build/NeonArena.apk
           if-no-files-found: error
           retention-days: 14
+
+# APK export workflow trigger refresh.
