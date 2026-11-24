@@ -135,6 +135,9 @@ func _update_enemies(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		var p := _to_game(event.position)
+		if event.pressed and game_over:
+			_restart()
+			return
 		if event.pressed:
 			touch_points[event.index] = p
 			if p.x < ARENA.x * 0.48:
@@ -161,6 +164,9 @@ func _input(event: InputEvent) -> void:
 			if direction.length() > 8.0:
 				aim_dir = direction.normalized()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed and game_over:
+			_restart()
+			return
 		if event.pressed:
 			var p := _to_game(event.position)
 			if p.distance_to(player_pos) > 10.0:
