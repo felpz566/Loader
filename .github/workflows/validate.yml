@@ -1,4 +1,4 @@
-name: Validate Godot project
+name: Build and validate Neon Arena
 
 on:
   push:
@@ -7,11 +7,24 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate:
+  android-apk:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "cmdline-tools;latest" "ndk;23.2.8568313" "cmake;3.10.2.4988404"
 
       - name: Install Godot 4.3
         uses: chickensoft-games/setup-godot@v2
@@ -19,5 +32,33 @@ jobs:
           version: 4.3.0
           use-dotnet: false
 
+      - name: Install Godot export templates
+        run: |
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.3.stable"
+          curl -L --fail             "https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz"             -o /tmp/godot_templates.tpz
+          unzip -o /tmp/godot_templates.tpz -d /tmp/godot_templates
+          cp -a /tmp/godot_templates/templates/. "$HOME/.local/share/godot/export_templates/4.3.stable/"
+
+      - name: Create temporary Android debug keystore
+        run: |
+          keytool -genkeypair -v             -keystore "$RUNNER_TEMP/debug.keystore"             -storepass android             -alias androiddebugkey             -keypass android             -keyalg RSA             -keysize 2048             -validity 10000             -dname "CN=Android Debug,O=Android,C=US"
+
       - name: Import and validate project
         run: godot --headless --editor --path . --quit
+
+      - name: Export Android APK
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ runner.temp }}/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          mkdir -p build
+          godot --headless --path . --export-debug "Android" build/NeonArena.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NeonArena-Android-APK
+          path: build/NeonArena.apk
+          if-no-files-found: error
+          retention-days: 14
